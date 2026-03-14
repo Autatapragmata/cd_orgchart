@@ -22,6 +22,8 @@ import { GoogleGenAI, Type } from '@google/genai';
 import { SparklesIcon } from './icons/SparklesIcon';
 import ExportModal from './ExportModal';
 import { UserRole } from '../App';
+import { BuildingIcon } from './icons/BuildingIcon';
+import { UserPlusIcon } from './icons/UserPlusIcon';
 
 
 interface OrgChartProps {
@@ -30,7 +32,7 @@ interface OrgChartProps {
   userRole: UserRole;
   onChartNameChange: (newName: string) => void;
   onUpdateNode: (nodeId: string, updates: Partial<Omit<Person, 'id' | 'children'>>) => void;
-  onAddChild: (parentId: string) => void;
+  onAddChild: (parentId: string, type?: 'person' | 'division') => void;
   onAddSkill: (nodeId: string, skill: string) => void;
   onRemoveSkill: (nodeId: string, skillToRemove: string) => void;
   onAddProject: (nodeId: string, project: string) => void;
@@ -38,7 +40,7 @@ interface OrgChartProps {
   onMoveNode: (draggedId: string, targetId: string) => void;
   onNodeDragEnd: (nodeId: string, delta: { dx: number, dy: number }) => void;
   onRemoveNodes: (nodeIds: string[]) => void;
-  onAddFloatingNode: (coords: { x: number, y: number }) => void;
+  onAddFloatingNode: (coords: { x: number, y: number }, type?: 'person' | 'division') => void;
   undo: () => void;
   redo: () => void;
   canUndo: boolean;
@@ -80,6 +82,8 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [initialExportNodeId, setInitialExportNodeId] = useState<string | null>(null);
   const initialZoomDone = useRef(false);
+  type NodePickerState = { screenX: number; screenY: number; canvasX: number; canvasY: number };
+  const [nodePicker, setNodePicker] = useState<NodePickerState | null>(null);
 
   const canEditContent = userRole !== 'viewer';
   const canEditStructure = userRole === 'admin';
@@ -192,14 +196,16 @@ const OrgChart: React.FC<OrgChartProps> = ({
 
     try {
         const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-        const employeeData = originalNodes.map(({ id, name, title, skills, projects, team }) => ({
-            id,
-            name,
-            title,
-            team: team || 'N/A',
-            skills: skills || [],
-            projects: projects || [],
-        }));
+        const employeeData = originalNodes
+            .filter(n => !n.type || n.type === 'person')
+            .map(({ id, name, title, skills, projects, team }) => ({
+                id,
+                name,
+                title,
+                team: team || 'N/A',
+                skills: skills || [],
+                projects: projects || [],
+            }));
 
         const systemInstruction = `You are an expert HR assistant. Your task is to find the best-suited person from a provided JSON list of employees based on a user's natural language request. Analyze the user's query and the employee data (skills, projects, title, team).
 
@@ -303,7 +309,8 @@ If a category has no matches, omit the key or provide an empty array. If no one 
                     node.title.toLowerCase().includes(lowerCaseQuery) ||
                     (node.team ? node.team.toLowerCase().includes(lowerCaseQuery) : false) ||
                     (node.skills ? node.skills.some(s => s.toLowerCase().includes(lowerCaseQuery)) : false) ||
-                    (node.projects ? node.projects.some(p => p.toLowerCase().includes(lowerCaseQuery)) : false);
+                    (node.projects ? node.projects.some(p => p.toLowerCase().includes(lowerCaseQuery)) : false) ||
+                    (node.notes ? node.notes.toLowerCase().includes(lowerCaseQuery) : false);
                 break;
         }
 
@@ -639,23 +646,19 @@ If a category has no matches, omit the key or provide an empty array. If no one 
 
   const handleDoubleClick = (e: React.MouseEvent) => {
     if (!canEditStructure) return;
-    if ((e.target as HTMLElement).closest('.group, .nodrag, .nodrag-area')) {
-        return;
-    }
+    if ((e.target as HTMLElement).closest('.group, .nodrag, .nodrag-area')) return;
 
     const { current: transformComponent } = transformRef;
     if (!transformComponent || !transformComponent.instance.wrapperComponent) return;
 
     const { scale, positionX, positionY } = transformComponent.state;
-    
     const rect = transformComponent.instance.wrapperComponent.getBoundingClientRect();
     const screenX = e.clientX - rect.left;
     const screenY = e.clientY - rect.top;
-
     const canvasX = (screenX - positionX) / scale;
     const canvasY = (screenY - positionY) / scale;
-    
-    onAddFloatingNode({ x: canvasX, y: canvasY });
+
+    setNodePicker({ screenX, screenY, canvasX, canvasY });
   };
   
   const handleOpenExportModal = () => {
@@ -830,12 +833,35 @@ If a category has no matches, omit the key or provide an empty array. If no one 
                         </button>
                     </div>
 
+                    {nodePicker && (
+                        <div
+                            className="absolute z-30 bg-white dark:bg-slate-800 rounded-xl shadow-xl border border-slate-200 dark:border-slate-700 p-2 flex gap-1 nodrag-area"
+                            style={{ left: nodePicker.screenX, top: nodePicker.screenY }}
+                            onClick={(e) => e.stopPropagation()}
+                        >
+                            <button
+                                onClick={() => { onAddFloatingNode({ x: nodePicker.canvasX, y: nodePicker.canvasY }, 'person'); setNodePicker(null); }}
+                                className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-slate-100 dark:hover:bg-slate-700 text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
+                            >
+                                <UserPlusIcon className="w-5 h-5 text-indigo-500" />
+                                Person
+                            </button>
+                            <button
+                                onClick={() => { onAddFloatingNode({ x: nodePicker.canvasX, y: nodePicker.canvasY }, 'division'); setNodePicker(null); }}
+                                className="flex flex-col items-center gap-1 px-3 py-2 rounded-lg hover:bg-violet-50 dark:hover:bg-violet-900/30 text-xs font-medium text-slate-700 dark:text-slate-200 transition-colors"
+                            >
+                                <BuildingIcon className="w-5 h-5 text-violet-500" />
+                                Division
+                            </button>
+                        </div>
+                    )}
+
                     <TransformComponent wrapperStyle={{ width: '100%', height: '100%' }} contentStyle={{ width: width || '100%', height: height || '100%' }}>
                         <div 
                             ref={chartRef} 
                             className="relative"
                             style={{ width, height }}
-                            onClick={() => setSelectedNodeIds([])}
+                            onClick={() => { setSelectedNodeIds([]); setNodePicker(null); }}
                             onDoubleClick={handleDoubleClick}
                         >
                             <Connectors nodes={nodes} connections={connections} />
