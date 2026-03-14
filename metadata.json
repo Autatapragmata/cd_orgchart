@@ -1,0 +1,5 @@
+{
+  "name": "MTA C&D Planning",
+  "description": "A sleek, simple web program that lets users easily create and filter organizational charts. Edit names and titles with a click, add skill tags, and filter the chart to highlight members with specific skills.",
+  "requestFramePermissions": []
+}
