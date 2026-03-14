@@ -1,1 +1,25 @@
-��^��ޮȨ�
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Authenticated users can read everything
+    match /{document=**} {
+      allow read: if request.auth != null;
+    }
+
+    // Authenticated users can write the shared chart
+    match /shared_charts/{chartId} {
+      allow write: if request.auth != null;
+    }
+
+    // Only admins can write user roles.
+    // The super admin (hardcoded) can always write.
+    // Other admins must already exist as 'admin' in the current roles document.
+    match /app_config/user_roles {
+      allow write: if request.auth != null && (
+        request.auth.token.email == 'michael.kavalar@mtacd.org' ||
+        (resource != null && resource.data.roles[request.auth.token.email] == 'admin')
+      );
+    }
+  }
+}

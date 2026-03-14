@@ -12,24 +12,24 @@ import { XIcon } from './components/icons/XIcon';
 import Login from './components/Login';
 import { LogoutIcon } from './components/icons/LogoutIcon';
 import PermissionLozenge from './components/PermissionLozenge';
+import ManageUsersModal from './components/ManageUsersModal';
+import { UsersIcon } from './components/icons/UsersIcon';
 
 // --- Permissions ---
-// The app now supports a tiered permission system.
 export type UserRole = 'admin' | 'contributor' | 'viewer';
 
-// Admins have full edit rights: they can change structure and content.
-const ADMINS = [
-    'michael.kavalar@mtacd.org',
-    'natalie.millstein@mtahq.org',
-    'natalie.millstein@mtacd.org',
-];
+// The super admin always has admin rights regardless of Firestore, and can seed/manage roles.
+const SUPER_ADMIN = 'michael.kavalar@mtacd.org';
 
-// Contributors can edit the content of nodes (names, skills, etc.) but cannot change the chart structure.
-const CONTRIBUTORS: string[] = [
-    // 'example.contributor@email.com',
-    'eric.wilson@mtacd.org',
-    'kiyoshi.yamazaki@mtacd.org',
-];
+// Initial roles seeded into Firestore on first super-admin login.
+const INITIAL_ROLES: Record<string, UserRole> = {
+    'natalie.millstein@mtahq.org': 'admin',
+    'natalie.millstein@mtacd.org': 'admin',
+    'eric.wilson@mtacd.org': 'contributor',
+    'kiyoshi.yamazaki@mtacd.org': 'contributor',
+};
+
+const ROLES_DOC_REF = db.collection('app_config').doc('user_roles');
 
 
 // A minimal fallback chart for new users or if data loading fails.
@@ -65,8 +65,10 @@ const App: React.FC = () => {
   const [theme, toggleTheme] = useDarkMode();
   const [user, setUser] = useState<User | null>(null);
   const [userRole, setUserRole] = useState<UserRole>('viewer');
+  const [rolesConfig, setRolesConfig] = useState<Record<string, UserRole>>({});
   const [isLoading, setIsLoading] = useState(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const [isManageUsersOpen, setIsManageUsersOpen] = useState(false);
   
   const hasUnsavedChanges = useRef(false);
 
@@ -88,22 +90,35 @@ const App: React.FC = () => {
     const authUnsubscribe = auth.onAuthStateChanged(async (currentUser) => {
         chartListenerUnsubscribe();
         setUser(currentUser);
-        
-        if (currentUser && currentUser.email) {
-            if (ADMINS.includes(currentUser.email)) {
-                setUserRole('admin');
-            } else if (CONTRIBUTORS.includes(currentUser.email)) {
-                setUserRole('contributor');
-            } else {
-                setUserRole('viewer');
-            }
-        } else {
-            setUserRole('viewer');
-        }
 
         if (!currentUser) {
+            setUserRole('viewer');
             setIsLoading(false);
             return;
+        }
+
+        // Load roles from Firestore
+        let loadedRoles: Record<string, UserRole> = {};
+        try {
+            const rolesDoc = await ROLES_DOC_REF.get();
+            if (rolesDoc.exists) {
+                loadedRoles = rolesDoc.data()?.roles || {};
+            } else if (currentUser.email === SUPER_ADMIN) {
+                // First-time setup: seed Firestore with initial roles
+                await ROLES_DOC_REF.set({ roles: INITIAL_ROLES });
+                loadedRoles = INITIAL_ROLES;
+            }
+        } catch (e) {
+            console.error('Error loading user roles:', e);
+        }
+        setRolesConfig(loadedRoles);
+
+        if (currentUser.email === SUPER_ADMIN) {
+            setUserRole('admin');
+        } else if (currentUser.email) {
+            setUserRole(loadedRoles[currentUser.email] || 'viewer');
+        } else {
+            setUserRole('viewer');
         }
       
         const chartDocRef = db.collection(MASTER_CHART_COLLECTION).doc(MASTER_CHART_ID);
@@ -374,6 +389,14 @@ const App: React.FC = () => {
     setLocalData(data.map(root => updatePositionsRecursively(root, false)));
   }, [data, setLocalData, userRole]);
   
+  const handleRolesChange = useCallback((newRoles: Record<string, UserRole>) => {
+    setRolesConfig(newRoles);
+    // Update the current user's own role if it changed
+    if (user?.email && user.email !== SUPER_ADMIN) {
+        setUserRole(newRoles[user.email] || 'viewer');
+    }
+  }, [user]);
+
   const handleSignOut = async () => {
     if (confirm("Are you sure you want to sign out?")) {
         try {
@@ -435,11 +458,30 @@ const App: React.FC = () => {
             </div>
         </div>
       )}
+      {isManageUsersOpen && (
+        <ManageUsersModal
+          roles={rolesConfig}
+          currentUserEmail={user.email!}
+          superAdminEmail={SUPER_ADMIN}
+          onClose={() => setIsManageUsersOpen(false)}
+          onRolesChange={handleRolesChange}
+        />
+      )}
       <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
         <PermissionLozenge role={userRole} />
         <div className="bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-md text-xs text-slate-500 dark:text-slate-400">
             Logged in as <span className="font-semibold text-slate-700 dark:text-slate-200">{user.email}</span>
         </div>
+        {userRole === 'admin' && (
+          <button
+            onClick={() => setIsManageUsersOpen(true)}
+            className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+            aria-label="Manage user permissions"
+            title="Manage Users"
+          >
+            <UsersIcon className="w-5 h-5"/>
+          </button>
+        )}
         <button
             onClick={() => setIsInfoModalOpen(true)}
             className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
