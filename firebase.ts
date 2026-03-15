@@ -4,13 +4,13 @@ import 'firebase/compat/auth';
 import 'firebase/compat/firestore'; // Fix: Import compat firestore
 
 const firebaseConfig = {
-  apiKey: "AIzaSyCymoIyag5xOf4PqUE_7iEakKW41uKQNuE",
-  authDomain: "mta-cd-orgchart.firebaseapp.com",
-  projectId: "mta-cd-orgchart",
-  storageBucket: "mta-cd-orgchart.firebasestorage.app",
-  messagingSenderId: "374142422499",
-  appId: "1:374142422499:web:fbf06c7c27d0dd036ea4d6",
-  measurementId: "G-VYT051ZLYJ"
+  apiKey: import.meta.env.VITE_FIREBASE_API_KEY,
+  authDomain: import.meta.env.VITE_FIREBASE_AUTH_DOMAIN,
+  projectId: import.meta.env.VITE_FIREBASE_PROJECT_ID,
+  storageBucket: import.meta.env.VITE_FIREBASE_STORAGE_BUCKET,
+  messagingSenderId: import.meta.env.VITE_FIREBASE_MESSAGING_SENDER_ID,
+  appId: import.meta.env.VITE_FIREBASE_APP_ID,
+  measurementId: import.meta.env.VITE_FIREBASE_MEASUREMENT_ID,
 };
 
 // Fix: Initialize the default app instance using the compat API.
