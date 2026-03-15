@@ -96,6 +96,12 @@ const App: React.FC = () => {
   const { state: data, set: setData, undo, redo, canUndo, canRedo, reset } = useHistoryState<Person[]>(fallbackData);
 
   const canEditContent = userRole === 'admin' || userRole === 'contributor';
+
+  // Charts the current user is allowed to see. Admins always see all charts.
+  const visibleChartsIndex = userRole === 'admin'
+    ? chartsIndex
+    : chartsIndex.filter(c => !c.allowedEmails?.length || (user?.email && c.allowedEmails.includes(user.email)));
+
   const chartName = chartsIndex.find(c => c.id === activeChartId)?.name || '';
 
   const setLocalData = useCallback((updater: Person[] | ((current: Person[]) => Person[])) => {
@@ -352,6 +358,14 @@ const App: React.FC = () => {
     }
   }, [activeChartId, chartsIndex]);
 
+  const handleChartAccessChange = useCallback(async (updatedCharts: ChartMeta[]) => {
+    try {
+        await CHARTS_INDEX_REF.set({ charts: updatedCharts });
+    } catch (e) {
+        console.error('Error updating chart access:', e);
+    }
+  }, []);
+
   // --- Node handlers ---
 
   const handleUpdateNode = useCallback((nodeId: string, updates: Partial<Omit<Person, 'id' | 'children'>>) => {
@@ -556,7 +570,7 @@ const App: React.FC = () => {
   return (
     <div className="font-sans text-slate-600 dark:text-slate-400 w-screen h-screen flex flex-col overflow-hidden">
       <ChartTabs
-        charts={chartsIndex}
+        charts={visibleChartsIndex}
         activeChartId={activeChartId}
         userRole={userRole}
         onSwitch={handleSwitchChart}
@@ -569,7 +583,7 @@ const App: React.FC = () => {
           data={data}
           chartName={chartName}
           userRole={userRole}
-          chartsIndex={chartsIndex}
+          chartsIndex={visibleChartsIndex}
           activeChartId={activeChartId}
           allChartsData={allChartsData}
           initialSearchQuery={initialSearchQuery}
@@ -619,8 +633,10 @@ const App: React.FC = () => {
             roles={rolesConfig}
             currentUserEmail={user.email!}
             superAdminEmail={SUPER_ADMIN}
+            charts={chartsIndex}
             onClose={() => setIsManageUsersOpen(false)}
             onRolesChange={handleRolesChange}
+            onChartAccessChange={handleChartAccessChange}
           />
         )}
         <div className="absolute top-4 right-4 flex items-center gap-2 z-20">

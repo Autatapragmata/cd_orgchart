@@ -1,6 +1,7 @@
 export interface ChartMeta {
   id: string;
   name: string;
+  allowedEmails?: string[];
 }
 
 export interface Person {
