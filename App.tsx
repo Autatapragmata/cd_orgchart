@@ -100,7 +100,7 @@ const App: React.FC = () => {
   // Charts the current user is allowed to see. Admins always see all charts.
   const visibleChartsIndex = userRole === 'admin'
     ? chartsIndex
-    : chartsIndex.filter(c => !c.allowedEmails?.length || (user?.email && c.allowedEmails.includes(user.email)));
+    : chartsIndex.filter(c => !Array.isArray(c.allowedEmails) || (user?.email && c.allowedEmails.includes(user.email)));
 
   const chartName = chartsIndex.find(c => c.id === activeChartId)?.name || '';
 
