@@ -15,6 +15,7 @@ import { LogoutIcon } from './components/icons/LogoutIcon';
 import PermissionLozenge from './components/PermissionLozenge';
 import ManageUsersModal from './components/ManageUsersModal';
 import { UsersIcon } from './components/icons/UsersIcon';
+import DeleteChartModal from './components/DeleteChartModal';
 
 // --- Permissions ---
 export type UserRole = 'admin' | 'contributor' | 'viewer';
@@ -81,6 +82,7 @@ const App: React.FC = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [isManageUsersOpen, setIsManageUsersOpen] = useState(false);
+  const [pendingDeleteChartId, setPendingDeleteChartId] = useState<string | null>(null);
 
   // Multiple charts
   const [chartsIndex, setChartsIndex] = useState<ChartMeta[]>([]);
@@ -310,14 +312,19 @@ const App: React.FC = () => {
     }
   }, [chartsIndex, userRole, reset]);
 
-  const handleDeleteChart = useCallback(async (chartId: string) => {
+  const handleDeleteChart = useCallback((chartId: string) => {
     if (userRole !== 'admin') return;
     if (chartsIndex.length <= 1) {
         alert("You can't delete the only remaining chart.");
         return;
     }
-    const name = chartsIndex.find(c => c.id === chartId)?.name || 'this chart';
-    if (!confirm(`Delete "${name}"? All data will be permanently removed.`)) return;
+    setPendingDeleteChartId(chartId);
+  }, [userRole, chartsIndex]);
+
+  const confirmDeleteChart = useCallback(async () => {
+    const chartId = pendingDeleteChartId;
+    if (!chartId) return;
+    setPendingDeleteChartId(null);
     const updatedCharts = chartsIndex.filter(c => c.id !== chartId);
     try {
         const batch = db.batch();
@@ -332,7 +339,7 @@ const App: React.FC = () => {
     } catch (e) {
         console.error('Error deleting chart:', e);
     }
-  }, [chartsIndex, userRole, activeChartId, reset]);
+  }, [pendingDeleteChartId, chartsIndex, activeChartId, reset]);
 
   const handleChartNameChange = useCallback(async (newName: string) => {
     if (!activeChartId || !newName.trim()) return;
@@ -597,6 +604,14 @@ const App: React.FC = () => {
                   </p>
               </div>
           </div>
+        )}
+        {pendingDeleteChartId && (
+          <DeleteChartModal
+            chartName={chartsIndex.find(c => c.id === pendingDeleteChartId)?.name || ''}
+            isPrimaryChart={pendingDeleteChartId === chartsIndex[0]?.id}
+            onConfirm={confirmDeleteChart}
+            onCancel={() => setPendingDeleteChartId(null)}
+          />
         )}
         {isManageUsersOpen && (
           <ManageUsersModal
