@@ -1,5 +1,5 @@
 import React, { useState, useRef, useMemo, useEffect } from 'react';
-import { Person } from '../types';
+import { Person, ChartMeta } from '../types';
 import Node from './Node';
 import Connectors from './Connectors';
 import { flattenTrees, getDescendantIds } from '../utils/treeUtils';
@@ -30,6 +30,11 @@ interface OrgChartProps {
   data: Person[];
   chartName: string;
   userRole: UserRole;
+  chartsIndex: ChartMeta[];
+  activeChartId: string | null;
+  allChartsData: Record<string, Person[]>;
+  onSwitchChart: (chartId: string) => void;
+  onSearchStart: () => void;
   onChartNameChange: (newName: string) => void;
   onUpdateNode: (nodeId: string, updates: Partial<Omit<Person, 'id' | 'children'>>) => void;
   onAddChild: (parentId: string, type?: 'person' | 'division') => void;
@@ -51,6 +56,11 @@ const OrgChart: React.FC<OrgChartProps> = ({
   data,
   chartName,
   userRole,
+  chartsIndex,
+  activeChartId,
+  allChartsData,
+  onSwitchChart,
+  onSearchStart,
   onChartNameChange,
   onUpdateNode,
   onAddChild,
@@ -422,6 +432,49 @@ If a category has no matches, omit the key or provide an empty array. If no one 
         return categorizedResults;
     }, [isAiSearchActive, aiRankedResults, nodes]);
 
+    // Trigger lazy loading of other charts' data when the user starts searching
+    useEffect(() => {
+        if (debouncedSearchQuery && !isAiSearchActive) {
+            onSearchStart();
+        }
+    }, [debouncedSearchQuery, isAiSearchActive, onSearchStart]);
+
+    const crossTabTextResults = useMemo(() => {
+        if (!debouncedSearchQuery || isAiSearchActive) return [];
+        const lowerCaseQuery = debouncedSearchQuery.toLowerCase();
+        const results: { chartId: string; chartName: string; matches: Person[] }[] = [];
+
+        for (const chart of chartsIndex) {
+            if (chart.id === activeChartId) continue;
+            const chartData = allChartsData[chart.id];
+            if (!chartData) continue;
+
+            const { nodes: chartNodes } = flattenTrees(chartData);
+            const matches = chartNodes.filter(node => {
+                switch (searchFilter) {
+                    case 'name': return node.name.toLowerCase().includes(lowerCaseQuery);
+                    case 'title': return node.title.toLowerCase().includes(lowerCaseQuery);
+                    case 'team': return node.team ? node.team.toLowerCase().includes(lowerCaseQuery) : false;
+                    case 'skills': return node.skills ? node.skills.some(s => s.toLowerCase().includes(lowerCaseQuery)) : false;
+                    case 'projects': return node.projects ? node.projects.some(p => p.toLowerCase().includes(lowerCaseQuery)) : false;
+                    default: return (
+                        node.name.toLowerCase().includes(lowerCaseQuery) ||
+                        node.title.toLowerCase().includes(lowerCaseQuery) ||
+                        (node.team ? node.team.toLowerCase().includes(lowerCaseQuery) : false) ||
+                        (node.skills ? node.skills.some(s => s.toLowerCase().includes(lowerCaseQuery)) : false) ||
+                        (node.projects ? node.projects.some(p => p.toLowerCase().includes(lowerCaseQuery)) : false) ||
+                        (node.notes ? node.notes.toLowerCase().includes(lowerCaseQuery) : false)
+                    );
+                }
+            });
+
+            if (matches.length > 0) {
+                results.push({ chartId: chart.id, chartName: chart.name, matches });
+            }
+        }
+        return results;
+    }, [debouncedSearchQuery, isAiSearchActive, allChartsData, chartsIndex, activeChartId, searchFilter]);
+
 
     const handleResultClick = (person: SearchResultItem) => {
         const { current: transformComponent } = transformRef;
@@ -696,12 +749,14 @@ If a category has no matches, omit the key or provide an empty array. If no one 
 
         {searchQuery && (
             <div className={`absolute left-4 z-10 transition-all duration-300 ease-in-out ${isAiSearchActive ? 'top-60' : 'top-48'}`}>
-                <SearchResultsList 
+                <SearchResultsList
                     results={processedTextSearchResults}
                     aiResults={aiSearchResultItems}
                     onResultClick={handleResultClick}
                     isAiSearchActive={isAiSearchActive}
                     isLoading={isAiLoading}
+                    crossTabResults={crossTabTextResults}
+                    onSwitchChart={onSwitchChart}
                 />
             </div>
         )}

@@ -85,6 +85,8 @@ const App: React.FC = () => {
   // Multiple charts
   const [chartsIndex, setChartsIndex] = useState<ChartMeta[]>([]);
   const [activeChartId, setActiveChartId] = useState<string | null>(null);
+  const [allChartsData, setAllChartsData] = useState<Record<string, Person[]>>({});
+  const allChartsLoadedRef = useRef(false);
 
   const hasUnsavedChanges = useRef(false);
 
@@ -259,6 +261,33 @@ const App: React.FC = () => {
     reset(fallbackData);
     setActiveChartId(chartId);
   }, [activeChartId, data, canEditContent, reset]);
+
+  // Reset cross-tab cache when switching charts so stale data isn't shown
+  useEffect(() => {
+    allChartsLoadedRef.current = false;
+    setAllChartsData({});
+  }, [activeChartId]);
+
+  const loadAllChartsForSearch = useCallback(async () => {
+    if (allChartsLoadedRef.current || !user) return;
+    allChartsLoadedRef.current = true;
+    try {
+      const results: Record<string, Person[]> = {};
+      await Promise.all(
+        chartsIndex
+          .filter(c => c.id !== activeChartId)
+          .map(async (c) => {
+            const doc = await db.collection(MASTER_CHART_COLLECTION).doc(c.id).get();
+            if (doc.exists) {
+              results[c.id] = processDataForLoad(doc.data()?.data);
+            }
+          })
+      );
+      setAllChartsData(results);
+    } catch (e) {
+      console.error('Error loading all charts for search:', e);
+    }
+  }, [chartsIndex, activeChartId, user]);
 
   const handleAddChart = useCallback(async () => {
     if (userRole !== 'admin') return;
@@ -530,6 +559,11 @@ const App: React.FC = () => {
           data={data}
           chartName={chartName}
           userRole={userRole}
+          chartsIndex={chartsIndex}
+          activeChartId={activeChartId}
+          allChartsData={allChartsData}
+          onSwitchChart={handleSwitchChart}
+          onSearchStart={loadAllChartsForSearch}
           onChartNameChange={handleChartNameChange}
           onUpdateNode={handleUpdateNode}
           onAddChild={handleAddChild}

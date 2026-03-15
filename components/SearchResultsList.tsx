@@ -4,6 +4,7 @@ import { ChevronDownIcon } from './icons/ChevronDownIcon';
 import { MapPinIcon } from './icons/MapPinIcon';
 import Tag from './Tag';
 import { SpinnerIcon } from './icons/SpinnerIcon';
+import { ArrowRightIcon } from './icons/ArrowRightIcon';
 
 export interface SearchResultItem extends Person {
   x: number;
@@ -12,12 +13,20 @@ export interface SearchResultItem extends Person {
   depth: number;
 }
 
+interface CrossTabResult {
+  chartId: string;
+  chartName: string;
+  matches: Person[];
+}
+
 interface SearchResultsListProps {
   results: SearchResultItem[];
   aiResults: { [key: string]: SearchResultItem[] } | null;
   onResultClick: (person: SearchResultItem) => void;
   isAiSearchActive: boolean;
   isLoading: boolean;
+  crossTabResults?: CrossTabResult[];
+  onSwitchChart?: (chartId: string) => void;
 }
 
 const SearchResultListItem: React.FC<{
@@ -93,7 +102,7 @@ const SearchResultListItem: React.FC<{
 };
 
 
-const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, aiResults, onResultClick, isAiSearchActive, isLoading }) => {
+const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, aiResults, onResultClick, isAiSearchActive, isLoading, crossTabResults = [], onSwitchChart }) => {
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
 
   const handleToggleExpand = (personId: string) => {
@@ -109,9 +118,11 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, aiResult
   };
 
   // FIX: Cast `arr` to the correct type to resolve TypeScript error about 'length' not existing on 'unknown'.
-  const totalResults = isAiSearchActive
+  const currentTabResults = isAiSearchActive
     ? Object.values(aiResults || {}).reduce((sum, arr) => sum + (arr as SearchResultItem[]).length, 0)
     : results.length;
+  const crossTabTotal = crossTabResults.reduce((sum, r) => sum + r.matches.length, 0);
+  const totalResults = currentTabResults + crossTabTotal;
 
   const categoryTitles: { [key: string]: string } = {
     bestMatches: 'Best Matches',
@@ -161,6 +172,48 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, aiResult
     });
   };
   
+  const renderCrossTabResults = () => {
+    if (crossTabResults.length === 0) return null;
+    return (
+      <>
+        <li className="px-3 pt-3 pb-1 bg-slate-100 dark:bg-slate-700/50 sticky top-0">
+          <p className="text-xs font-bold text-slate-500 dark:text-slate-300 uppercase tracking-wider">Other Tabs</p>
+        </li>
+        {crossTabResults.map((group) => (
+          <React.Fragment key={group.chartId}>
+            <li className="border-t border-slate-200 dark:border-slate-700">
+              <div className="flex items-center justify-between px-3 py-2 bg-slate-50 dark:bg-slate-800/50">
+                <span className="text-xs font-semibold text-slate-600 dark:text-slate-300 truncate">{group.chartName}</span>
+                <button
+                  onClick={() => onSwitchChart?.(group.chartId)}
+                  className="flex items-center gap-1 text-xs text-indigo-600 dark:text-indigo-400 hover:underline flex-shrink-0 ml-2"
+                  title={`Switch to ${group.chartName}`}
+                >
+                  Switch <ArrowRightIcon className="w-3 h-3" />
+                </button>
+              </div>
+            </li>
+            {group.matches.map((person, i) => (
+              <li key={person.id} className={i > 0 ? "border-t border-slate-200 dark:border-slate-700" : ""}>
+                <div className="flex items-center gap-3 px-3 py-2">
+                  <div
+                    className="w-1 h-8 rounded-full flex-shrink-0"
+                    style={{ backgroundColor: person.color || '#94a3b8' }}
+                    aria-hidden="true"
+                  />
+                  <div className="flex-grow overflow-hidden">
+                    <p className="font-medium text-slate-800 dark:text-slate-100 truncate text-sm">{person.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400 truncate">{person.title}</p>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </React.Fragment>
+        ))}
+      </>
+    );
+  };
+
   const renderAiResults = () => {
     if (!aiResults) return null;
     return Object.entries(categoryTitles).map(([categoryKey, categoryTitle]) => {
@@ -209,6 +262,7 @@ const SearchResultsList: React.FC<SearchResultsListProps> = ({ results, aiResult
         ) : (
         <ul role="list">
           {isAiSearchActive ? renderAiResults() : renderTextResults()}
+          {!isAiSearchActive && renderCrossTabResults()}
         </ul>
         )}
       </div>
