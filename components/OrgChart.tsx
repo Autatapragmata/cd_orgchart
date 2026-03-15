@@ -85,6 +85,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiRankedResults, setAiRankedResults] = useState<{ [key: string]: string[] } | null>(null);
 
+  const [isTransformReady, setIsTransformReady] = useState(false);
   const [hoveredNodeId, setHoveredNodeId] = useState<string | null>(null);
   const [selectedNodeIds, setSelectedNodeIds] = useState<string[]>([]);
   const [focusedNodeId, setFocusedNodeId] = useState<string | null>(null);
@@ -620,7 +621,7 @@ If a category has no matches, omit the key or provide an empty array. If no one 
         setTransform(newPositionX, newPositionY, newScale, 300, 'easeOut');
 
     // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [searchQuery, searchFilter, isAiSearchActive, isAiLoading, aiNodesToFrame, textNodesToFrame]);
+    }, [searchQuery, searchFilter, isAiSearchActive, isAiLoading, aiNodesToFrame, textNodesToFrame, isTransformReady]);
 
   const handleMinimapPan = (targetChartX: number, targetChartY: number) => {
     const { current: transformComponent } = transformRef;
@@ -773,6 +774,7 @@ If a category has no matches, omit the key or provide an empty array. If no one 
             wheel={{ step: 0.1 }}
             doubleClick={{ disabled: true }}
             onTransformed={(ref, state) => setViewTransform(state)}
+            onInit={() => setIsTransformReady(true)}
         >
             {({ zoomIn, zoomOut, resetTransform }) => (
                 <>
