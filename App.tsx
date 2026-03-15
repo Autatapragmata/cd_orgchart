@@ -360,7 +360,7 @@ const App: React.FC = () => {
 
   const handleChartAccessChange = useCallback(async (updatedCharts: ChartMeta[]) => {
     try {
-        await CHARTS_INDEX_REF.set({ charts: updatedCharts });
+        await CHARTS_INDEX_REF.set({ charts: stripUndefined(updatedCharts) });
     } catch (e) {
         console.error('Error updating chart access:', e);
     }
