@@ -155,6 +155,12 @@ const OrgChart: React.FC<OrgChartProps> = ({
     if (initialZoomDone.current || nodes.length === 0 || width === 0 || height === 0) {
       return;
     }
+    // If we arrived with a pre-populated search query, let the search frame
+    // effect handle positioning instead of zooming to the full chart extent.
+    if (initialSearchQuery) {
+      initialZoomDone.current = true;
+      return;
+    }
 
     const { current: transformComponent } = transformRef;
     if (!transformComponent || !transformComponent.instance.wrapperComponent) {
