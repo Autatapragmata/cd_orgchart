@@ -6,6 +6,55 @@ import { db } from '../firebase';
 
 const ROLES_DOC_REF = db.collection('app_config').doc('user_roles');
 
+const AccessEmailInput: React.FC<{
+    value: string;
+    onChange: (v: string) => void;
+    onAdd: () => void;
+    disabled: boolean;
+    suggestions: string[];
+}> = ({ value, onChange, onAdd, disabled, suggestions }) => {
+    const [open, setOpen] = useState(false);
+    const showSuggestions = open && value.length > 0 && suggestions.length > 0;
+
+    return (
+        <div className="relative flex gap-2 mt-2">
+            <div className="relative flex-1">
+                <input
+                    type="email"
+                    value={value}
+                    onChange={(e) => { onChange(e.target.value); setOpen(true); }}
+                    onFocus={() => setOpen(true)}
+                    onBlur={() => setTimeout(() => setOpen(false), 150)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') { setOpen(false); onAdd(); } if (e.key === 'Escape') setOpen(false); }}
+                    placeholder="user@example.com"
+                    disabled={disabled}
+                    className="w-full border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 disabled:opacity-50"
+                />
+                {showSuggestions && (
+                    <ul className="absolute z-10 left-0 right-0 top-full mt-0.5 bg-white dark:bg-slate-700 border border-slate-200 dark:border-slate-600 rounded shadow-lg max-h-36 overflow-y-auto">
+                        {suggestions.map(email => (
+                            <li
+                                key={email}
+                                onMouseDown={() => { onChange(email); setOpen(false); }}
+                                className="px-2 py-1.5 text-xs text-slate-700 dark:text-slate-200 hover:bg-indigo-50 dark:hover:bg-indigo-900/30 cursor-pointer truncate"
+                            >
+                                {email}
+                            </li>
+                        ))}
+                    </ul>
+                )}
+            </div>
+            <button
+                onClick={() => { setOpen(false); onAdd(); }}
+                disabled={disabled}
+                className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50 flex-shrink-0"
+            >
+                Add
+            </button>
+        </div>
+    );
+};
+
 interface Props {
     roles: Record<string, UserRole>;
     currentUserEmail: string;
@@ -264,24 +313,16 @@ const ManageUsersModal: React.FC<Props> = ({ roles, currentUserEmail, superAdmin
                                                         </button>
                                                     </div>
                                                 ))}
-                                                <div className="flex gap-2 mt-2">
-                                                    <input
-                                                        type="email"
-                                                        value={accessEmail}
-                                                        onChange={(e) => { setAccessEmail(e.target.value); setAccessError(''); }}
-                                                        onKeyDown={(e) => e.key === 'Enter' && addAllowedEmail(chart.id)}
-                                                        placeholder="user@example.com"
-                                                        disabled={savingAccess}
-                                                        className="flex-1 border border-slate-300 dark:border-slate-600 rounded px-2 py-1 text-xs bg-white dark:bg-slate-700 text-slate-800 dark:text-slate-100 placeholder-slate-400 disabled:opacity-50"
-                                                    />
-                                                    <button
-                                                        onClick={() => addAllowedEmail(chart.id)}
-                                                        disabled={savingAccess}
-                                                        className="bg-blue-600 text-white px-2 py-1 rounded text-xs font-medium hover:bg-blue-700 disabled:opacity-50"
-                                                    >
-                                                        Add
-                                                    </button>
-                                                </div>
+                                                <AccessEmailInput
+                                                    value={accessEmail}
+                                                    onChange={(v) => { setAccessEmail(v); setAccessError(''); }}
+                                                    onAdd={() => addAllowedEmail(chart.id)}
+                                                    disabled={savingAccess}
+                                                    suggestions={[superAdminEmail, ...Object.keys(roles)].filter(e =>
+                                                        e.toLowerCase().includes(accessEmail.toLowerCase()) &&
+                                                        !(chart.allowedEmails || []).includes(e)
+                                                    )}
+                                                />
                                             </div>
                                         )}
                                     </div>
