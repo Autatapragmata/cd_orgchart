@@ -318,6 +318,7 @@ const App: React.FC = () => {
         alert("You can't delete the only remaining chart.");
         return;
     }
+    if (chartId === chartsIndex[0]?.id) return;
     setPendingDeleteChartId(chartId);
   }, [userRole, chartsIndex]);
 

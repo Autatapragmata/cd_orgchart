@@ -33,7 +33,7 @@ const ChartTabs: React.FC<ChartTabsProps> = ({ charts, activeChartId, userRole, 
                         <span className={`text-sm truncate max-w-[140px] ${isActive ? 'font-medium' : ''}`}>
                             {chart.name || 'Untitled'}
                         </span>
-                        {isAdmin && charts.length > 1 && (
+                        {isAdmin && charts.length > 1 && chart.id !== charts[0].id && (
                             <button
                                 onClick={(e) => { e.stopPropagation(); onDelete(chart.id); }}
                                 className="opacity-0 group-hover:opacity-100 p-0.5 rounded hover:bg-slate-300 dark:hover:bg-slate-700 text-slate-400 hover:text-slate-700 dark:hover:text-slate-200 transition-opacity"
