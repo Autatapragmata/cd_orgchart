@@ -33,7 +33,8 @@ interface OrgChartProps {
   chartsIndex: ChartMeta[];
   activeChartId: string | null;
   allChartsData: Record<string, Person[]>;
-  onSwitchChart: (chartId: string) => void;
+  initialSearchQuery?: string;
+  onSwitchChart: (chartId: string, query?: string) => void;
   onSearchStart: () => void;
   onChartNameChange: (newName: string) => void;
   onUpdateNode: (nodeId: string, updates: Partial<Omit<Person, 'id' | 'children'>>) => void;
@@ -59,6 +60,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   chartsIndex,
   activeChartId,
   allChartsData,
+  initialSearchQuery = '',
   onSwitchChart,
   onSearchStart,
   onChartNameChange,
@@ -77,7 +79,7 @@ const OrgChart: React.FC<OrgChartProps> = ({
   canUndo,
   canRedo,
 }) => {
-  const [searchQuery, setSearchQuery] = useState('');
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery);
   const [searchFilter, setSearchFilter] = useState('all');
   const [isAiSearchActive, setIsAiSearchActive] = useState(false);
   const [isAiLoading, setIsAiLoading] = useState(false);
@@ -756,7 +758,7 @@ If a category has no matches, omit the key or provide an empty array. If no one 
                     isAiSearchActive={isAiSearchActive}
                     isLoading={isAiLoading}
                     crossTabResults={crossTabTextResults}
-                    onSwitchChart={onSwitchChart}
+                    onSwitchChart={(chartId) => onSwitchChart(chartId, searchQuery)}
                 />
             </div>
         )}

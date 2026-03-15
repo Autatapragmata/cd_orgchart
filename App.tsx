@@ -87,6 +87,7 @@ const App: React.FC = () => {
   const [activeChartId, setActiveChartId] = useState<string | null>(null);
   const [allChartsData, setAllChartsData] = useState<Record<string, Person[]>>({});
   const allChartsLoadedRef = useRef(false);
+  const [initialSearchQuery, setInitialSearchQuery] = useState('');
 
   const hasUnsavedChanges = useRef(false);
 
@@ -248,7 +249,7 @@ const App: React.FC = () => {
 
   // --- Chart management ---
 
-  const handleSwitchChart = useCallback((chartId: string) => {
+  const handleSwitchChart = useCallback((chartId: string, query = '') => {
     if (chartId === activeChartId) return;
     // Flush pending save before switching
     if (hasUnsavedChanges.current && activeChartId && canEditContent) {
@@ -257,6 +258,7 @@ const App: React.FC = () => {
             .catch(console.error);
         hasUnsavedChanges.current = false;
     }
+    setInitialSearchQuery(query);
     setIsLoading(true);
     reset(fallbackData);
     setActiveChartId(chartId);
@@ -562,6 +564,7 @@ const App: React.FC = () => {
           chartsIndex={chartsIndex}
           activeChartId={activeChartId}
           allChartsData={allChartsData}
+          initialSearchQuery={initialSearchQuery}
           onSwitchChart={handleSwitchChart}
           onSearchStart={loadAllChartsForSearch}
           onChartNameChange={handleChartNameChange}
