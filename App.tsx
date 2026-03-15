@@ -48,6 +48,19 @@ const fallbackPerson: Person = {
 
 const fallbackData: Person[] = [layoutTree(fallbackPerson)];
 
+// Firestore rejects `undefined` values. Strip them recursively before every save.
+const stripUndefined = (value: any): any => {
+    if (Array.isArray(value)) return value.map(stripUndefined);
+    if (value !== null && typeof value === 'object') {
+        return Object.fromEntries(
+            Object.entries(value)
+                .filter(([, v]) => v !== undefined)
+                .map(([k, v]) => [k, stripUndefined(v)])
+        );
+    }
+    return value;
+};
+
 const processDataForLoad = (data: any): Person[] => {
     let dataToLoad = data || fallbackData;
     if (!Array.isArray(dataToLoad)) {
@@ -176,7 +189,7 @@ const App: React.FC = () => {
         } else {
             // New chart: create with fallback data
             const newData = processDataForLoad(null);
-            chartDocRef.set({ data: newData });
+            chartDocRef.set({ data: stripUndefined(newData) });
             reset(newData);
         }
         setIsLoading(false);
@@ -196,7 +209,7 @@ const App: React.FC = () => {
     const handler = setTimeout(() => {
         if (hasUnsavedChanges.current) {
             db.collection(MASTER_CHART_COLLECTION).doc(activeChartId)
-                .set({ data: data })
+                .set({ data: stripUndefined(data) })
                 .then(() => {
                     hasUnsavedChanges.current = false;
                 })
@@ -238,7 +251,7 @@ const App: React.FC = () => {
     // Flush pending save before switching
     if (hasUnsavedChanges.current && activeChartId && canEditContent) {
         db.collection(MASTER_CHART_COLLECTION).doc(activeChartId)
-            .set({ data: data })
+            .set({ data: stripUndefined(data) })
             .catch(console.error);
         hasUnsavedChanges.current = false;
     }
