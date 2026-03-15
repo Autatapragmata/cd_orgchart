@@ -571,7 +571,6 @@ const App: React.FC = () => {
           />
         )}
         <div className="absolute top-4 right-4 flex items-center gap-2 z-20">
-          <PermissionLozenge role={userRole} />
           <div className="bg-white dark:bg-slate-800 px-3 py-1.5 rounded-full shadow-md text-xs text-slate-500 dark:text-slate-400">
               Logged in as <span className="font-semibold text-slate-700 dark:text-slate-200">{user.email}</span>
           </div>
@@ -585,6 +584,7 @@ const App: React.FC = () => {
               <UsersIcon className="w-4 h-4"/>
             </button>
           )}
+          <PermissionLozenge role={userRole} />
           <button
               onClick={() => setIsInfoModalOpen(true)}
               className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
