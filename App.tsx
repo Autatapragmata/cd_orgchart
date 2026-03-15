@@ -578,11 +578,11 @@ const App: React.FC = () => {
           {userRole === 'admin' && (
             <button
               onClick={() => setIsManageUsersOpen(true)}
-              className="w-10 h-10 flex items-center justify-center rounded-full bg-white dark:bg-slate-800 shadow-md text-slate-500 dark:text-slate-400 hover:bg-slate-100 dark:hover:bg-slate-700"
+              className="flex items-center justify-center px-3 py-1.5 rounded-full shadow-md bg-amber-100 text-amber-800 dark:bg-amber-900/50 dark:text-amber-300 hover:bg-amber-200 dark:hover:bg-amber-900"
               aria-label="Manage user permissions"
               title="Manage Users"
             >
-              <UsersIcon className="w-5 h-5"/>
+              <UsersIcon className="w-4 h-4"/>
             </button>
           )}
           <button
